@@ -66,7 +66,7 @@ func main() {
 		}
 	}
 	c := crawler{
-		donwloadTimeout:  downloadTimeout,
+		downloadTimeout:  downloadTimeout,
 		generalTimeout:   generalTimeout,
 		timeBetweenSteps: timeBetweenSteps,
 		year:             year,

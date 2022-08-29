@@ -16,7 +16,7 @@ import (
 
 type crawler struct {
 	// Aqui temos os atributos e métodos necessários para realizar a coleta dos dados
-	donwloadTimeout  time.Duration
+	downloadTimeout  time.Duration
 	generalTimeout   time.Duration
 	timeBetweenSteps time.Duration
 	year             string
@@ -40,6 +40,7 @@ func (c crawler) crawl() ([]string, error) {
 	)
 	defer allocCancel()
 
+	// Criando o contexto do Chromedp
 	ctx, cancel := chromedp.NewContext(
 		alloc,
 		chromedp.WithLogf(log.Printf), // remover comentário para depurar
@@ -59,12 +60,12 @@ func (c crawler) crawl() ([]string, error) {
 		log.Fatalf("Erro no setup:%v", err)
 	}
 	log.Printf("Seleção realizada com sucesso!\n")
-	cqFname := c.downloadFilePath("contracheques")
-	log.Printf("Fazendo download do contracheque (%s)...", cqFname)
-	if err := c.exportaPlanilha(ctx, cqFname); err != nil {
-		log.Fatalf("Erro fazendo download do contracheque: %v", err)
-	}
-	log.Printf("Download realizado com sucesso!\n")
+	// cqFname := c.downloadFilePath("contracheques")
+	// log.Printf("Fazendo download do contracheque (%s)...", cqFname)
+	// if err := c.exportaPlanilha(ctx, cqFname); err != nil {
+	// 	log.Fatalf("Erro fazendo download do contracheque: %v", err)
+	// }
+	// log.Printf("Download realizado com sucesso!\n")
 
 	// Indenizações
 	log.Printf("Realizando seleção (%s/%s)...", c.month, c.year)
@@ -79,7 +80,8 @@ func (c crawler) crawl() ([]string, error) {
 	}
 	log.Printf("Download realizado com sucesso!\n")
 
-	return []string{cqFname, iFname}, nil
+	//return []string{cqFname, iFname}, nil
+	return []string{"ttt"}, nil
 }
 
 // Retorna os caminhos completos dos arquivos baixados.
@@ -88,7 +90,7 @@ func (c crawler) downloadFilePath(prefix string) string {
 }
 
 func (c crawler) selecionaContracheque(ctx context.Context, year string, month string) error {
-	var err error
+	//var err error
 	monthMap := map[string]string{
 		"01": "Janeiro",
 		"02": "Fevereiro",
@@ -103,8 +105,6 @@ func (c crawler) selecionaContracheque(ctx context.Context, year string, month s
 		"11": "Novembro",
 		"12": "Dezembro",
 	}
-	var buf []byte
-
 	chromedp.Run(ctx,
 		// Acessando o site
 		chromedp.Navigate("http://transparencia.mppa.mp.br/index.htm"),
@@ -113,46 +113,48 @@ func (c crawler) selecionaContracheque(ctx context.Context, year string, month s
 		chromedp.Click(`//*[@id="16"]/div[2]/button`, chromedp.BySearch, chromedp.NodeVisible),
 		chromedp.Sleep(c.timeBetweenSteps),
 	)
-
-	selectedMonth, err = c.getSelectedMonth(ctx)
-	if err != nil {
-		log.Fatalf("erro ao obter mês selecionado no site: %v", err)
-	}
-	selectedYear, err = c.getSelectedYear(ctx)
-	if err != nil {
-		log.Fatalf("erro ao obter ano selecionado no site: %v", err)
-	}
-	// Seleciona o ano
-	if selectedYear != year {
-		log.Printf("Selecionando o ano...")
-		if err := chromedp.Run(ctx,
-			chromedp.SetValue(`//*[@id="50"]/div[2]/input`, year, chromedp.BySearch),
-			chromedp.Sleep(c.timeBetweenSteps),
-		); err != nil {
-			return fmt.Errorf("Erro: %w", err)
-		}
-	}
+	// Verifica qual ano e qual mês já está selecionado no site para não selecionar novamente.
+	// selectedMonth, err = c.getSelectedMonth(ctx)
+	// if err != nil {
+	// 	log.Fatalf("erro ao obter mês selecionado no site: %v", err)
+	// }
+	// selectedYear, err = c.getSelectedYear(ctx)
+	// if err != nil {
+	// 	log.Fatalf("erro ao obter ano selecionado no site: %v", err)
+	// }
+	// // Seleciona o ano
+	// if selectedYear != year {
+	// 	log.Printf("Selecionando o ano...")
+	// 	selectYear := fmt.Sprintf(`//*[@id="DS"]/div/div/div[1]/div[@title="%s"]/div[1]`, year)
+	// 	if err := chromedp.Run(ctx,
+	// 		chromedp.Click(`//*[@id="50"]/div[2]/button`, chromedp.BySearch, chromedp.NodeVisible),
+	// 		chromedp.Sleep(c.timeBetweenSteps),
+	// 		chromedp.DoubleClick(selectYear, chromedp.BySearch, chromedp.NodeVisible),
+	// 		chromedp.Sleep(c.timeBetweenSteps),
+	// 	); err != nil {
+	// 		return fmt.Errorf("Erro: %w", err)
+	// 	}
+	// }
 	// Seleciona o mês
-	if selectedMonth != monthMap[month] {
-		log.Printf("Selecionando o mês...")
-		if err := chromedp.Run(ctx,
-			chromedp.SetValue(`//*[@id="49"]/div[2]/input`, monthMap[month], chromedp.BySearch, chromedp.NodeVisible),
-			chromedp.Sleep(c.timeBetweenSteps),
-		); err != nil {
-			return fmt.Errorf("Erro: %w", err)
-		}
+	//if selectedMonth != monthMap[month] {
+	log.Printf("Selecionando o mês...")
+	selectMonth := fmt.Sprintf(`//*[@id="DS"]/div/div/div[1]/div[@title="%s"]/div[1]`, monthMap[month])
+	if err := chromedp.Run(ctx,
+		chromedp.Click(`//*[@id="49"]/div[2]/button`, chromedp.BySearch, chromedp.NodeVisible),
+		chromedp.Sleep(c.timeBetweenSteps),
+		chromedp.DoubleClick(selectMonth, chromedp.BySearch, chromedp.NodeVisible),
+		chromedp.Sleep(c.timeBetweenSteps),
+	); err != nil {
+		return fmt.Errorf("Erro: %w", err)
 	}
+	//}
 	// Altera o diretório de download
 	if err := chromedp.Run(ctx,
-		chromedp.FullScreenshot(&buf, 90),
 		browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllowAndName).
 			WithDownloadPath(c.output).
 			WithEventsEnabled(true),
 	); err != nil {
 		return fmt.Errorf("Erro: %w", err)
-	}
-	if err := ioutil.WriteFile("/output/fullScreenshot.jpeg", buf, 0644); err != nil {
-		log.Fatal(err)
 	}
 	return nil
 }
@@ -178,39 +180,61 @@ func (c crawler) selecionaIndenizacoes(ctx context.Context, year string, month s
 		// Seleciona a opção Verbas Indenizatórias e Outras Remunerações Temporárias
 		chromedp.Click(`//*[@id="38"]/div[2]/button`, chromedp.BySearch, chromedp.NodeVisible),
 		chromedp.Sleep(c.timeBetweenSteps),
-		chromedp.WaitVisible(`//*[@id="111"]/div[1]/div[2]/div`, chromedp.BySearch),
+		chromedp.WaitVisible(`//*[@id="111"]`, chromedp.BySearch),
+		chromedp.FullScreenshot(&buf, 90),
 	)
+	if err := ioutil.WriteFile("/output/fullScreenshot.jpeg", buf, 0644); err != nil {
+		log.Fatal(err)
+	}
+	print("eu to aqui")
+	var err error
+	selectedMonth, err = c.getSelectedMonth(ctx)
+	if err != nil {
+		log.Fatalf("erro ao obter mês selecionado no site: %v", err)
+	}
+	print("agora aqui")
+	// selectedYear, err = c.getSelectedYear(ctx)
+	// if err != nil {
+	// 	log.Fatalf("erro ao obter ano selecionado no site: %v", err)
+	// }
 	// Seleciona o ano
-	if selectedYear != year {
-		log.Printf("Selecionando o ano...")
+	// if selectedYear != year {
+	// 	log.Printf("Selecionando o ano...")
+	// 	selectYear := fmt.Sprintf(`//*[@id="DS"]/div/div/div[1]/div[@title="%s"]/div[1]`, year)
+	// 	if err := chromedp.Run(ctx,
+	// 		chromedp.Click(`//*[@id="105"]/div[2]/button`, chromedp.BySearch, chromedp.NodeVisible),
+	// 		chromedp.Sleep(c.timeBetweenSteps),
+	// 		chromedp.DoubleClick(selectYear, chromedp.BySearch, chromedp.NodeVisible),
+	// 		chromedp.Sleep(c.timeBetweenSteps),
+	// 	); err != nil {
+	// 		return fmt.Errorf("Erro: %w", err)
+	// 	}
+	// }
+	// Seleciona o mês
+	if selectedMonth != monthMap[month] {
+		log.Printf("Selecionando o mês...")
+		selectMonth := fmt.Sprintf(`//*[@id="DS"]/div/div/div[1]/div[@title="%s"]/div[1]`, monthMap[month])
 		if err := chromedp.Run(ctx,
-			chromedp.SetValue(`//*[@id="105"]/div[2]/input`, year, chromedp.BySearch),
+			chromedp.Click(`//*[@id="106"]/div[2]/button`, chromedp.BySearch, chromedp.NodeVisible),
+			chromedp.Sleep(c.timeBetweenSteps),
+			chromedp.DoubleClick(selectMonth, chromedp.BySearch, chromedp.NodeVisible),
+			chromedp.FullScreenshot(&buf, 90),
+
 			chromedp.Sleep(c.timeBetweenSteps),
 		); err != nil {
 			return fmt.Errorf("Erro: %w", err)
 		}
-	}
-	// Seleciona o mês
-	if selectedMonth != monthMap[month] {
-		log.Printf("Selecionando o mês...")
-		if err := chromedp.Run(ctx,
-			chromedp.SetValue(`//*[@id="106"]/div[2]/input`, monthMap[month], chromedp.BySearch, chromedp.NodeVisible),
-			chromedp.Sleep(c.timeBetweenSteps),
-		); err != nil {
-			return fmt.Errorf("Erro: %w", err)
+		if err := ioutil.WriteFile("/output/fullScreenshot.jpeg", buf, 0644); err != nil {
+			log.Fatal(err)
 		}
 	}
 	// Altera o diretório de download
 	if err := chromedp.Run(ctx,
-		chromedp.FullScreenshot(&buf, 90),
 		browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllowAndName).
 			WithDownloadPath(c.output).
 			WithEventsEnabled(true),
 	); err != nil {
 		return fmt.Errorf("Erro: %w", err)
-	}
-	if err := ioutil.WriteFile("/output/fullScreenshot.jpeg", buf, 0644); err != nil {
-		log.Fatal(err)
 	}
 	return nil
 }
@@ -222,13 +246,13 @@ func (c crawler) exportaPlanilha(ctx context.Context, fName string) error {
 		// Contracheque
 		chromedp.Run(ctx,
 			chromedp.Click(`//*[@id="34"]/div[1]/div[1]/div`, chromedp.BySearch, chromedp.NodeVisible),
-			chromedp.Sleep(c.donwloadTimeout),
+			chromedp.Sleep(c.downloadTimeout),
 		)
 	} else {
 		// Indenizações
 		chromedp.Run(ctx,
 			chromedp.Click(`//*[@id="111"]/div[1]/div[1]`, chromedp.BySearch, chromedp.NodeVisible),
-			chromedp.Sleep(c.donwloadTimeout),
+			chromedp.Sleep(c.downloadTimeout),
 		)
 	}
 
@@ -269,53 +293,49 @@ func nomeiaDownload(output, fName string) error {
 	}
 	return nil
 }
+
+/* funções getSelectedMonth e getSelectedYear
+
+Procuram o valor que está no atributo "placeholder" do input de selecionar mês e ano.
+Caso não encontrem o input, um erro será lançado.
+Caso encontrem o input, mas não encontrem o atributo "placeholder" nele, a variável "ok" será igual a false.
+Por fim, se encontrarem o input e ele possuir o atributo "placeholder", as variáveis
+"selectedMonth/selectedYear" receberão os valores desses atributos.
+*/
 func (c crawler) getSelectedMonth(ctx context.Context) (string, error) {
 	var ok bool
 	var selectedMonth string
 
-	/*
-		Procura o valor que está no atributo "title" do botão de selecionar mês.
-		Caso ele não encontre a div, um erro será lançado. Caso ele encontre a div,
-		mas não encontre o atributo "title" dentro dela, a variável "ok" será igual a false.
-		Por fim, se ele encontrar a div e ela possuir o atributo "title", a variável
-		"selectedMonth" receberá o valor desse atributo.
-	*/
 	if err := chromedp.Run(ctx,
-		chromedp.AttributeValue(`//*[@id="49"]/div[2]/input`, "placeholder", &selectedMonth, &ok, chromedp.BySearch),
+		chromedp.AttributeValue(`//*[@id="106"]/div[2]/input`, "placeholder", &selectedMonth, &ok, chromedp.BySearch),
 		chromedp.Sleep(c.timeBetweenSteps),
 	); err != nil {
 		return "", fmt.Errorf(`Erro recuperando valor: %w`, err)
 	}
 
-	//Verifica se o atributo "placeholder" foi encontrado dentro da div selecionada.
+	//Verifica se o atributo "placeholder" foi encontrado dentro do input selecionado.
 	if !ok {
-		return "", fmt.Errorf(`A div selecionada não possui o atributo "placeholder"`)
+		return "", fmt.Errorf(`O input selecionado não possui o atributo "placeholder"`)
 	}
 
 	return selectedMonth, nil
 }
-func (c crawler) getSelectedYear(ctx context.Context) (string, error) {
-	var ok bool
-	var selectedYear string
 
-	/*
-		Procura o valor que está no atributo "title" do botão de selecionar mês.
-		Caso ele não encontre a div, um erro será lançado. Caso ele encontre a div,
-		mas não encontre o atributo "title" dentro dela, a variável "ok" será igual a false.
-		Por fim, se ele encontrar a div e ela possuir o atributo "title", a variável
-		"selectedMonth" receberá o valor desse atributo.
-	*/
-	if err := chromedp.Run(ctx,
-		chromedp.AttributeValue(`//*[@id="50"]/div[2]/input`, "placeholder", &selectedYear, &ok, chromedp.BySearch),
-		chromedp.Sleep(c.timeBetweenSteps),
-	); err != nil {
-		return "", fmt.Errorf(`Erro recuperando valor: %w`, err)
-	}
+// func (c crawler) getSelectedYear(ctx context.Context) (string, error) {
+// 	var ok bool
+// 	var selectedYear string
 
-	//Verifica se o atributo "placeholder" foi encontrado dentro da div selecionada.
-	if !ok {
-		return "", fmt.Errorf(`A div selecionada não possui o atributo "placeholder"`)
-	}
+// 	if err := chromedp.Run(ctx,
+// 		chromedp.AttributeValue(`//*[@id="105"]/div[2]/input`, "placeholder", &selectedYear, &ok, chromedp.BySearch),
+// 		chromedp.Sleep(c.timeBetweenSteps),
+// 	); err != nil {
+// 		return "", fmt.Errorf(`Erro recuperando valor: %w`, err)
+// 	}
 
-	return selectedYear, nil
-}
+// 	//Verifica se o atributo "placeholder" foi encontrado dentro do input selecionado.
+// 	if !ok {
+// 		return "", fmt.Errorf(`O input selecionado não possui o atributo "placeholder"`)
+// 	}
+
+// 	return selectedYear, nil
+// }
