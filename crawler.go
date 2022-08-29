@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/chromedp/cdproto/browser"
@@ -21,6 +23,8 @@ type crawler struct {
 	month            string
 	output           string
 }
+
+var selectedMonth, selectedYear string
 
 func (c crawler) crawl() ([]string, error) {
 	// Chromedp setup.
@@ -84,6 +88,7 @@ func (c crawler) downloadFilePath(prefix string) string {
 }
 
 func (c crawler) selecionaContracheque(ctx context.Context, year string, month string) error {
+	var err error
 	monthMap := map[string]string{
 		"01": "Janeiro",
 		"02": "Fevereiro",
@@ -98,20 +103,28 @@ func (c crawler) selecionaContracheque(ctx context.Context, year string, month s
 		"11": "Novembro",
 		"12": "Dezembro",
 	}
-	selectedMonth, err := c.getSelectedMonth(ctx)
-	if err != nil {
-		log.Fatalf("erro ao obter mês selecionado no site: %v", err)
-	}
-	selectedYear, err := c.getSelectedYear(ctx)
-	if err != nil {
-		log.Fatalf("erro ao obter mês selecionado no site: %v", err)
-	}
-	chromedp.Run(ctx,
-		chromedp.Navigate("http://transparencia.mppa.mp.br/index.htm"),
-		chromedp.Sleep(c.timeBetweenSteps))
+	var buf []byte
 
+	chromedp.Run(ctx,
+		// Acessando o site
+		chromedp.Navigate("http://transparencia.mppa.mp.br/index.htm"),
+		chromedp.Sleep(c.timeBetweenSteps),
+		// Selecionando a opção contracheque
+		chromedp.Click(`//*[@id="16"]/div[2]/button`, chromedp.BySearch, chromedp.NodeVisible),
+		chromedp.Sleep(c.timeBetweenSteps),
+	)
+
+	selectedMonth, err = c.getSelectedMonth(ctx)
+	if err != nil {
+		log.Fatalf("erro ao obter mês selecionado no site: %v", err)
+	}
+	selectedYear, err = c.getSelectedYear(ctx)
+	if err != nil {
+		log.Fatalf("erro ao obter ano selecionado no site: %v", err)
+	}
 	// Seleciona o ano
 	if selectedYear != year {
+		log.Printf("Selecionando o ano...")
 		if err := chromedp.Run(ctx,
 			chromedp.SetValue(`//*[@id="50"]/div[2]/input`, year, chromedp.BySearch),
 			chromedp.Sleep(c.timeBetweenSteps),
@@ -121,6 +134,7 @@ func (c crawler) selecionaContracheque(ctx context.Context, year string, month s
 	}
 	// Seleciona o mês
 	if selectedMonth != monthMap[month] {
+		log.Printf("Selecionando o mês...")
 		if err := chromedp.Run(ctx,
 			chromedp.SetValue(`//*[@id="49"]/div[2]/input`, monthMap[month], chromedp.BySearch, chromedp.NodeVisible),
 			chromedp.Sleep(c.timeBetweenSteps),
@@ -130,30 +144,93 @@ func (c crawler) selecionaContracheque(ctx context.Context, year string, month s
 	}
 	// Altera o diretório de download
 	if err := chromedp.Run(ctx,
+		chromedp.FullScreenshot(&buf, 90),
 		browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllowAndName).
 			WithDownloadPath(c.output).
 			WithEventsEnabled(true),
 	); err != nil {
 		return fmt.Errorf("Erro: %w", err)
 	}
+	if err := ioutil.WriteFile("/output/fullScreenshot.jpeg", buf, 0644); err != nil {
+		log.Fatal(err)
+	}
 	return nil
 }
 
 func (c crawler) selecionaIndenizacoes(ctx context.Context, year string, month string) error {
-	return chromedp.Run(ctx,
+	monthMap := map[string]string{
+		"01": "Janeiro",
+		"02": "Fevereiro",
+		"03": "Março",
+		"04": "Abril",
+		"05": "Maio",
+		"06": "Junho",
+		"07": "Julho",
+		"08": "Agosto",
+		"09": "Setembro",
+		"10": "Outubro",
+		"11": "Novembro",
+		"12": "Dezembro",
+	}
+	var buf []byte
+
+	chromedp.Run(ctx,
 		// Seleciona a opção Verbas Indenizatórias e Outras Remunerações Temporárias
-		chromedp.Click(`//*[@id="120"]/div[2]/button`, chromedp.BySearch, chromedp.NodeVisible),
+		chromedp.Click(`//*[@id="38"]/div[2]/button`, chromedp.BySearch, chromedp.NodeVisible),
 		chromedp.Sleep(c.timeBetweenSteps),
+		chromedp.WaitVisible(`//*[@id="111"]/div[1]/div[2]/div`, chromedp.BySearch),
 	)
+	// Seleciona o ano
+	if selectedYear != year {
+		log.Printf("Selecionando o ano...")
+		if err := chromedp.Run(ctx,
+			chromedp.SetValue(`//*[@id="105"]/div[2]/input`, year, chromedp.BySearch),
+			chromedp.Sleep(c.timeBetweenSteps),
+		); err != nil {
+			return fmt.Errorf("Erro: %w", err)
+		}
+	}
+	// Seleciona o mês
+	if selectedMonth != monthMap[month] {
+		log.Printf("Selecionando o mês...")
+		if err := chromedp.Run(ctx,
+			chromedp.SetValue(`//*[@id="106"]/div[2]/input`, monthMap[month], chromedp.BySearch, chromedp.NodeVisible),
+			chromedp.Sleep(c.timeBetweenSteps),
+		); err != nil {
+			return fmt.Errorf("Erro: %w", err)
+		}
+	}
+	// Altera o diretório de download
+	if err := chromedp.Run(ctx,
+		chromedp.FullScreenshot(&buf, 90),
+		browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllowAndName).
+			WithDownloadPath(c.output).
+			WithEventsEnabled(true),
+	); err != nil {
+		return fmt.Errorf("Erro: %w", err)
+	}
+	if err := ioutil.WriteFile("/output/fullScreenshot.jpeg", buf, 0644); err != nil {
+		log.Fatal(err)
+	}
+	return nil
 }
 
 // A função exportaPlanilha clica no botão correto para exportar para excel, espera um tempo para o download e renomeia o arquivo.
 func (c crawler) exportaPlanilha(ctx context.Context, fName string) error {
-	chromedp.Run(ctx,
-		// Clica no botão de download
-		chromedp.Click(`//*[@id="34"]/div[1]/div[1]/div`, chromedp.BySearch, chromedp.NodeVisible),
-		chromedp.Sleep(c.timeBetweenSteps),
-	)
+	// Clica no botão de download
+	if strings.Contains(fName, "contracheques") {
+		// Contracheque
+		chromedp.Run(ctx,
+			chromedp.Click(`//*[@id="34"]/div[1]/div[1]/div`, chromedp.BySearch, chromedp.NodeVisible),
+			chromedp.Sleep(c.donwloadTimeout),
+		)
+	} else {
+		// Indenizações
+		chromedp.Run(ctx,
+			chromedp.Click(`//*[@id="111"]/div[1]/div[1]`, chromedp.BySearch, chromedp.NodeVisible),
+			chromedp.Sleep(c.donwloadTimeout),
+		)
+	}
 
 	if err := nomeiaDownload(c.output, fName); err != nil {
 		return fmt.Errorf("erro renomeando arquivo (%s): %v", fName, err)
